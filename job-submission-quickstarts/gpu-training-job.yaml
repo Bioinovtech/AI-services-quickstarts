@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: llm-training-job
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+      - name: training-container
+        image: nvidia/cuda:11.8.0-runtime-ubuntu22.04
+        resources:
+          limits:
+            nvidia.com/gpu: "1"  # Request 1 GPU
+          requests:
+            nvidia.com/gpu: "1"
+            memory: "16Gi"
+            cpu: "4"
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        volumeMounts:
+        - name: training-data
+          mountPath: /data
+        - name: model-checkpoints
+          mountPath: /checkpoints
+      volumes:
+      - name: training-data
+        persistentVolumeClaim:
+          claimName: training-data-pvc
+      - name: model-checkpoints
+        persistentVolumeClaim:
+          claimName: model-checkpoints-pvc
+      restartPolicy: Never
+      nodeSelector:
+        nvidia.com/gpu: "true"  # Ensure pod runs on GPU nodes
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule 
